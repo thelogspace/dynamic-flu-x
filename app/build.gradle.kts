@@ -4,22 +4,21 @@ plugins {
 }
 
 android {
-    namespace = "com.logspace.dynamic_flu_x"
-    compileSdk = 34
+    namespace = "com.logspace.dynamic_flui_x"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.logspace.dynamic_flu_x"
+        applicationId = "com.logspace.dynamic_flui_x"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        targetSdk = 36
+        versionCode = 2
+        versionName = "1.0.0"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -30,8 +29,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
     buildFeatures {
         viewBinding = true
@@ -40,11 +41,9 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("com.google.android.material:material:1.13.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    implementation("androidx.webkit:webkit:1.14.0")
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.webkit)
+    implementation(libs.play.services.ads)
 }
