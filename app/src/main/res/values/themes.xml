@@ -2,11 +2,7 @@
 <resources>
     <style name="Theme.DynamicFluX" parent="Theme.AppCompat.NoActionBar">
         <item name="colorPrimary">@color/purple_500</item>
-        <!-- Edge-to-edge için transparent status ve navigation bar -->
-        <!-- Not: Android 15+ için WindowCompat API'leri kullanılıyor, bu ayarlar geriye dönük uyumluluk için -->
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

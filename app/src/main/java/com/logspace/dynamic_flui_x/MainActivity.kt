@@ -8,11 +8,8 @@ import android.os.Bundle
 import android.view.View
 import android.webkit.*
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
@@ -28,31 +25,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sharedPreferences: SharedPreferences
     private val PREFS_NAME = "app_prefs"
     private val KEY_LAUNCH_COUNT = "launch_count"
-    private val INTERSTITIAL_AD_ID = "ca-app-pub-2313560120112536/3748587946"
+    private val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-2313560120112536/3748587946"
+    private val AD_SHOW_INTERVAL = 3 // Her 3 girişte bir
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // AdMob'u başlat
-        MobileAds.initialize(this) {}
-        
-        // SharedPreferences'ı başlat
-        sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        
-        // Edge-to-edge ekran desteği (Android 15+ uyumlu)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        
-        // Full screen modu aktif et
-        setupFullScreen()
-        
+
+        // Android 15 (SDK 35) uyumlu uçtan uca görünüm
+        enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
+        // SharedPreferences başlat
+        sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        
+        // Google Ads'i başlat
+        MobileAds.initialize(this) {}
+        
         webView = findViewById(R.id.webView)
         progressBar = findViewById(R.id.progressBar)
-        
-        // Window insets'leri handle et
-        setupEdgeToEdge()
 
         setupWebView()
         setupBackPressHandler()
@@ -61,12 +52,12 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun checkAndShowAd() {
-        // Giriş sayısını artır
+        // Giriş sayacını artır
         val launchCount = sharedPreferences.getInt(KEY_LAUNCH_COUNT, 0) + 1
         sharedPreferences.edit().putInt(KEY_LAUNCH_COUNT, launchCount).apply()
         
-        // Her 2 girişte bir reklam göster
-        if (launchCount % 2 == 0) {
+        // Her 3 girişte bir reklam göster
+        if (launchCount % AD_SHOW_INTERVAL == 0) {
             loadInterstitialAd()
         }
     }
@@ -76,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         
         InterstitialAd.load(
             this,
-            INTERSTITIAL_AD_ID,
+            INTERSTITIAL_AD_UNIT_ID,
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
@@ -86,7 +77,7 @@ class MainActivity : AppCompatActivity() {
                 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
                     interstitialAd = null
-                    android.util.Log.d("AdMob", "Interstitial ad failed to load: ${loadAdError.message}")
+                    android.util.Log.d("Ads", "Interstitial ad failed to load: ${loadAdError.message}")
                 }
             }
         )
@@ -97,33 +88,21 @@ class MainActivity : AppCompatActivity() {
             ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     interstitialAd = null
+                    // Reklam kapandıktan sonra bir sonraki reklamı önceden yükle
+                    loadInterstitialAd()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(p0: com.google.android.gms.ads.AdError) {
                     interstitialAd = null
-                    android.util.Log.d("AdMob", "Interstitial ad failed to show: ${p0.message}")
+                    android.util.Log.d("Ads", "Interstitial ad failed to show: ${p0.message}")
+                }
+                
+                override fun onAdShowedFullScreenContent() {
+                    android.util.Log.d("Ads", "Interstitial ad showed")
                 }
             }
+            
             ad.show(this)
-        }
-    }
-    
-    private fun setupFullScreen() {
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        windowInsetsController.apply {
-            // System bars'ı gizle (full screen)
-            hide(WindowInsetsCompat.Type.systemBars())
-            // Immersive mode: kullanıcı ekrana dokunduğunda bars gösterilir, sonra tekrar gizlenir
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    }
-    
-    private fun setupEdgeToEdge() {
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            // Full screen modda padding gerekmez, ama edge-to-edge için 0 yapıyoruz
-            view.setPadding(0, 0, 0, 0)
-            insets
         }
     }
     
@@ -133,8 +112,7 @@ class MainActivity : AppCompatActivity() {
                 if (webView.canGoBack()) {
                     webView.goBack()
                 } else {
-                    // Ana sayfaya yönlendir
-                    webView.loadUrl("file:///android_asset/index.html")
+                    finish()
                 }
             }
         })
@@ -180,6 +158,22 @@ class MainActivity : AppCompatActivity() {
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString() ?: return false
+                val isMainFrame = request?.isForMainFrame ?: false
+                
+                // Reklam URL'lerini ve iframe'leri WebView içinde aç (tıklamaları engelleme)
+                val adDomains = listOf(
+                    "googleads", "doubleclick", "googlesyndication", "adservice",
+                    "adsense", "advertising", "adnxs", "adform", "advertising.com",
+                    "adsrvr", "adtech", "advertising", "pubmatic", "rubiconproject",
+                    "openx", "indexexchange", "criteo", "outbrain", "taboola"
+                )
+                
+                val isAdUrl = adDomains.any { url.contains(it, ignoreCase = true) }
+                
+                // Ana frame değilse (iframe, reklam vb.) WebView içinde aç
+                if (!isMainFrame || isAdUrl) {
+                    return false // WebView içinde aç
+                }
                 
                 return when {
                     // Instagram URL'leri - Instagram uygulamasında aç
@@ -220,7 +214,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     
-                    // Diğer URL'ler - Chrome'da aç
+                    // Diğer URL'ler - Chrome'da aç (sadece ana frame için)
                     url.startsWith("http://", ignoreCase = true) || 
                     url.startsWith("https://", ignoreCase = true) -> {
                         try {
